@@ -1,72 +1,94 @@
+import React, { useEffect } from 'react';
 import { Image, StyleSheet, Platform, TouchableOpacity, Text, View } from 'react-native';
-
-import { initializeApp } from 'firebase/app';
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
-import firebase from 'firebase/app';
-import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore/lite';
-import 'firebase/auth';
-import 'firebase/firestore';
+import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore';
+import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Firebase configuration
 const firebaseConfig = {
   apiKey: 'AIzaSyB1zjwDB3tSigXRnSbHGH7Nf8AwxOzTVLY',
   projectId: 'healthdevice-89a7e',
   messagingSenderId: '708390894238',
 };
 
-const app = initializeApp(firebaseConfig); // Correct usage
+// Initialize Firebase app if not already initialized
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-async function getData() {
-  const usersCol = collection(db, 'Users');
-  const usersSnap = await getDocs(usersCol);
-  
-  // Map over the snapshot and return an array of document data
-  const data = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-  return data;
+// Check if auth has already been initialized
+let auth;
+if (!getAuth(app)._isInitialized) {
+  auth = initializeAuth(app, {
+    persistence: getReactNativePersistence(AsyncStorage),
+  });
+} else {
+  auth = getAuth(app);
 }
 
-async function saveData() {
-  const usersCol = collection(db, 'Users');
+// Function to store data in AsyncStorage
+const storeData = async (value: Object) => {
+  try {
+    const jsonValue = JSON.stringify(value);
+    await AsyncStorage.setItem('my-key', jsonValue);
+  } catch (e) {
+    console.error("Error saving data: ", e);
+  }
+};
 
-  // Define the data to be saved
+// Function to retrieve data from Firestore
+const getData = async () => {
+  try {
+    const usersCol = collection(db, 'Users');
+    const usersSnap = await getDocs(usersCol);
+    return usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (e) {
+    console.error("Error getting documents: ", e);
+  }
+};
+
+// Function to save data to Firestore
+const saveData = async () => {
+  const usersCol = collection(db, 'Users');
   const newUserData = {
     username: "testuser",
     email: "testuser@example.com",
     password: "test",
     createdAt: new Date()
   };
-
   try {
-    // Add a new document with auto-generated ID
     const docRef = await addDoc(usersCol, newUserData);
     console.log("Document written with ID: ", docRef.id);
   } catch (e) {
     console.error("Error adding document: ", e);
   }
-}
+};
 
-// Export the Firebase instances
- // Realtime Database
-
+// Main Component
 export default function HomeScreen() {
+  useEffect(() => {
+    const storeAuthData = async () => {
+      await storeData(auth.currentUser);
+    };
+    storeAuthData();
+  }, []);
+
   return (
     <View style={styles.mainContainer}>
       <View style={styles.titleContainer}>
         <ThemedText style={styles.titleText} type="title">Welcome to the Health Device App!</ThemedText>
-        {/* <HelloWave /> */}
       </View>
       <View style={styles.firstChildContainer}>
-      <View style={styles.contentContainer}>
-        <TouchableOpacity onPress={async() => 
-          console.log(await getData())} style={styles.normalButton}>
-          <Text style={styles.buttonText}>Log Test Database</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={async() => 
-            await saveData()} style={styles.normalButton}>
-          <Text style={styles.buttonText}>Save into Database</Text>
-        </TouchableOpacity>
-      </View>
+        <View style={styles.contentContainer}>
+          <TouchableOpacity onPress={async() => console.log(await getData())} style={styles.normalButton}>
+            <Text style={styles.buttonText}>Log Test Database</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={async() => await saveData()} style={styles.normalButton}>
+            <Text style={styles.buttonText}>Save into Database</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -98,7 +120,8 @@ const styles = StyleSheet.create({
     color: "#37AFE1",
   },
   normalButton: {
-    width: "30%",
+    width: "80%",
+    maxWidth: 200,
     height: 60,
     backgroundColor: "#4CC9FE",
     alignItems: "center",

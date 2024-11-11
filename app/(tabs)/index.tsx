@@ -5,7 +5,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { getFirestore, collection, getDocs, addDoc } from 'firebase/firestore';
 import { initializeAuth, getAuth, getReactNativePersistence } from 'firebase/auth';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
 
 // Firebase configuration
 const firebaseConfig = {
@@ -19,20 +19,16 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
 // Check if auth has already been initialized
-let auth;
-if (!getAuth(app)._isInitialized) {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-} else {
-  auth = getAuth(app);
-}
+
+const auth = initializeAuth(app, {
+  persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+});
 
 // Function to store data in AsyncStorage
 const storeData = async (value: Object) => {
   try {
     const jsonValue = JSON.stringify(value);
-    await AsyncStorage.setItem('my-key', jsonValue);
+    await ReactNativeAsyncStorage.setItem('my-key', jsonValue);
   } catch (e) {
     console.error("Error saving data: ", e);
   }
@@ -133,4 +129,4 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 20
   }
-});
+})
